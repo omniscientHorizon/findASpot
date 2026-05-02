@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Spot, SpotType } from '@/lib/types';
 import { FLOORS, TYPE_LABELS, STALE_THRESHOLD_MINUTES } from '@/lib/constants';
+import InfoTooltip from './InfoTooltip';
 
 interface FindSpotProps {
   onSelect: (spot: Spot) => void;
@@ -11,10 +12,10 @@ interface FindSpotProps {
 }
 
 const TYPE_GROUPS: { label: string; types: SpotType[] }[] = [
-  { label: 'Carrels',   types: ['carrel', 'carrel_enclosed'] },
-  { label: 'Tables',    types: ['group_table', 'large_table', 'couch_table'] },
-  { label: 'Computers', types: ['computer', 'adjustable_computer'] },
-  { label: 'Rooms',     types: ['study_room'] },
+  { label: 'Study Desks',        types: ['carrel', 'carrel_enclosed'] },
+  { label: 'Group Study Tables', types: ['group_table', 'large_table', 'couch_table'] },
+  { label: 'Computers',          types: ['computer', 'adjustable_computer'] },
+  { label: 'Rooms',              types: ['study_room'] },
 ];
 
 const STATUS_DOT: Record<string, string> = {
@@ -23,6 +24,9 @@ const STATUS_DOT: Record<string, string> = {
   partial:   '#f59e0b',
   unknown:   '#d1d5db',
 };
+
+const CARREL_TYPES = new Set<SpotType>(['carrel', 'carrel_enclosed']);
+const CARREL_TOOLTIP = 'A compact private desk built for solo studying.';
 
 function relativeTime(iso: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -40,10 +44,10 @@ function resolveStatus(spot: Spot): Spot {
 }
 
 export default function FindSpot({ onSelect, onClose }: FindSpotProps) {
-  const [allSpots, setAllSpots]         = useState<Spot[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [query, setQuery]               = useState('');
-  const [activeGroup, setActiveGroup]   = useState<string | null>(null);
+  const [allSpots, setAllSpots]           = useState<Spot[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [activeGroup, setActiveGroup]     = useState<string | null>(null);
+  const [activeFloor, setActiveFloor]     = useState<string | null>(null);
   const [availableOnly, setAvailableOnly] = useState(true);
 
   useEffect(() => {
@@ -56,19 +60,16 @@ export default function FindSpot({ onSelect, onClose }: FindSpotProps) {
   }, []);
 
   const results = useMemo(() => {
-    const q = query.toLowerCase();
     return allSpots.filter(s => {
       if (availableOnly && s.status !== 'available') return false;
+      if (activeFloor && s.floor_id !== activeFloor) return false;
       if (activeGroup) {
         const group = TYPE_GROUPS.find(g => g.label === activeGroup);
         if (group && !group.types.includes(s.type)) return false;
       }
-      if (q) {
-        return s.name.toLowerCase().includes(q) || TYPE_LABELS[s.type].toLowerCase().includes(q);
-      }
       return true;
     });
-  }, [allSpots, query, activeGroup, availableOnly]);
+  }, [allSpots, activeGroup, activeFloor, availableOnly]);
 
   const byFloor = useMemo(() => {
     const map = new Map<string, Spot[]>();
@@ -97,31 +98,29 @@ export default function FindSpot({ onSelect, onClose }: FindSpotProps) {
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 text-xl leading-none">×</button>
         </div>
 
-        {/* search + filters */}
+        {/* filters */}
         <div className="px-4 pb-3 flex-shrink-0 border-b border-gray-100">
-          <div className="relative mb-3">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search by name or type…"
-              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-400"
-              autoFocus
-            />
-            {query && (
-              <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
-            )}
+          {/* floor chips */}
+          <div className="flex gap-1.5 flex-wrap mb-2">
+            <button
+              onClick={() => setActiveFloor(null)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${activeFloor === null ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >All floors</button>
+            {FLOORS.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setActiveFloor(activeFloor === f.id ? null : f.id)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${activeFloor === f.id ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              >{f.name}</button>
+            ))}
           </div>
 
-          {/* type filter chips */}
+          {/* type chips */}
           <div className="flex gap-1.5 flex-wrap mb-2">
             <button
               onClick={() => setActiveGroup(null)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${activeGroup === null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-            >Any</button>
+            >Any type</button>
             {TYPE_GROUPS.map(g => (
               <button
                 key={g.label}
@@ -151,6 +150,8 @@ export default function FindSpot({ onSelect, onClose }: FindSpotProps) {
             </div>
           ) : results.length === 0 ? (
             <p className="text-center text-sm text-gray-400 py-8">No spots found</p>
+          ) : activeFloor ? (
+            results.map(spot => <SpotRow key={spot.id} spot={spot} onSelect={onSelect} />)
           ) : (
             FLOORS.map(floor => {
               const floorSpots = byFloor.get(floor.id) ?? [];
@@ -158,20 +159,7 @@ export default function FindSpot({ onSelect, onClose }: FindSpotProps) {
               return (
                 <div key={floor.id}>
                   <p className="px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50">{floor.name}</p>
-                  {floorSpots.map(spot => (
-                    <button
-                      key={spot.id}
-                      onClick={() => onSelect(spot)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left border-b border-gray-50 transition-colors"
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_DOT[spot.status] ?? STATUS_DOT.unknown }} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 leading-snug">{spot.name}</p>
-                        <p className="text-xs text-gray-400">{TYPE_LABELS[spot.type]} · {spot.capacity === 1 ? '1 seat' : `${spot.capacity} seats`}</p>
-                      </div>
-                      <span className="text-xs text-gray-400 flex-shrink-0">{relativeTime(spot.updated_at)}</span>
-                    </button>
-                  ))}
+                  {floorSpots.map(spot => <SpotRow key={spot.id} spot={spot} onSelect={onSelect} />)}
                 </div>
               );
             })
@@ -179,5 +167,27 @@ export default function FindSpot({ onSelect, onClose }: FindSpotProps) {
         </div>
       </div>
     </>
+  );
+}
+
+function SpotRow({ spot, onSelect }: { spot: Spot; onSelect: (s: Spot) => void }) {
+  const isCarrel = CARREL_TYPES.has(spot.type);
+  return (
+    <button
+      onClick={() => onSelect(spot)}
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left border-b border-gray-50 transition-colors"
+    >
+      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_DOT[spot.status] ?? STATUS_DOT.unknown }} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 leading-snug">{spot.name}</p>
+        <p className="text-xs text-gray-400 flex items-center">
+          {TYPE_LABELS[spot.type]}
+          {isCarrel && <InfoTooltip text={CARREL_TOOLTIP} />}
+          <span className="mx-1">·</span>
+          {spot.capacity === 1 ? '1 seat' : `${spot.capacity} seats`}
+        </p>
+      </div>
+      <span className="text-xs text-gray-400 flex-shrink-0">{relativeTime(spot.updated_at)}</span>
+    </button>
   );
 }

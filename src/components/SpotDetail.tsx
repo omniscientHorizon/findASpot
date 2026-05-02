@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Spot, SpotStatus } from '@/lib/types';
 import { TYPE_LABELS, TYPE_FEATURES } from '@/lib/constants';
+import InfoTooltip from './InfoTooltip';
 import { updateSpotStatus } from '@/hooks/useSpots';
 import { useRateLimit } from '@/hooks/useRateLimit';
 
@@ -83,6 +84,7 @@ export default function SpotDetail({ spot, userId, onClose, onUpdated }: SpotDet
   if (!spot) return null;
 
   const features = TYPE_FEATURES[spot.type] ?? [];
+  const isCarrel = spot.type === 'carrel' || spot.type === 'carrel_enclosed';
   const dotColor = STATUS_DOT[spot.status] ?? STATUS_DOT.unknown;
   const disabled = updating || cooldown > 0;
   const freshness = freshnessInfo(spot.updated_at);
@@ -104,8 +106,11 @@ export default function SpotDetail({ spot, userId, onClose, onUpdated }: SpotDet
           <div className="flex items-start justify-between mb-3">
             <div>
               <h2 className="text-base font-semibold text-gray-900 leading-snug">{spot.name}</h2>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {TYPE_LABELS[spot.type]} · {spot.capacity === 1 ? '1 seat' : `${spot.capacity} seats`}
+              <p className="text-sm text-gray-400 mt-0.5 flex items-center">
+                {TYPE_LABELS[spot.type]}
+                {isCarrel && <InfoTooltip text="A compact private desk built for solo studying." />}
+                <span className="mx-1">·</span>
+                {spot.capacity === 1 ? '1 seat' : `${spot.capacity} seats`}
               </p>
             </div>
             <button

@@ -280,8 +280,8 @@ export default function FloorPlan({ floorId, spots, activeTypes, selectedSpot, o
         )}
       </button>
 
-      {/* Zoom +/- — only in fullscreen, bottom-right above fullscreen button */}
-      {fullscreen && (
+      {/* Zoom +/- — visible whenever zoomed in, or in fullscreen */}
+      {(scale > 1.1 || fullscreen) && (
         <div className="absolute bottom-14 right-3 z-10 flex flex-col gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); zoomIn(); }}
@@ -299,6 +299,20 @@ export default function FloorPlan({ floorId, spots, activeTypes, selectedSpot, o
         </div>
       )}
 
+      {/* Legend — bottom-left, hidden when zoomed in (double-tap hint takes that spot) */}
+      {!fullscreen && scale <= 1.1 && (
+        <div className="absolute bottom-3 left-3 z-10 pointer-events-none bg-white/90 rounded-xl px-3 py-2.5 flex flex-col gap-2"
+          style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.08)' }}
+        >
+          {([['#22c55e','Open'],['#ef4444','Taken'],['#d1d5db','Unknown']] as const).map(([color, label]) => (
+            <span key={label} className="flex items-center gap-2 text-xs text-gray-600">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Double-tap hint when zoomed */}
       {scale > 1.1 && (
         <div className="absolute bottom-3 left-3 text-[10px] text-gray-400 bg-white/70 px-2 py-0.5 rounded-full pointer-events-none z-10">
@@ -306,17 +320,6 @@ export default function FloorPlan({ floorId, spots, activeTypes, selectedSpot, o
         </div>
       )}
 
-      {/* Legend — bottom-left when NOT zoomed, otherwise hidden */}
-      {scale <= 1.1 && !fullscreen && (
-        <div className="absolute bottom-3 left-3 flex items-center gap-2 pointer-events-none z-10">
-          {([['#22c55e','open'],['#ef4444','taken'],['#d1d5db','unknown']] as const).map(([color, label]) => (
-            <span key={label} className="flex items-center gap-1 text-[10px] text-gray-400">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
-              {label}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

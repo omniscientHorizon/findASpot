@@ -8,11 +8,11 @@ import { supabase } from '@/lib/supabase';
 import { STALE_THRESHOLD_MINUTES } from '@/lib/constants';
 import Header from '@/components/Header';
 import FloorTabs from '@/components/FloorTabs';
-import FilterBar from '@/components/FilterBar';
 import FloorPlan from '@/components/FloorPlan';
 import SpotDetail from '@/components/SpotDetail';
 import StatsBar from '@/components/StatsBar';
 import FindSpot from '@/components/FindSpot';
+import InfoModal from '@/components/InfoModal';
 
 const ALL_TYPES: SpotType[] = [
   'carrel', 'carrel_enclosed', 'computer', 'adjustable_computer',
@@ -29,6 +29,7 @@ export default function Home() {
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [focusSpot, setFocusSpot]       = useState<Spot | null>(null);
   const [findOpen, setFindOpen]         = useState(false);
+  const [infoOpen, setInfoOpen]         = useState(false);
 
   const { spots, loading, refetch } = useSpots(activeFloor);
   const { userId } = useAuth();
@@ -75,6 +76,7 @@ export default function Home() {
         totalAvailable={libraryAvailable}
         totalSpots={FLOOR_TOTALS[activeFloor]}
         onFindClick={() => setFindOpen(true)}
+        onInfoClick={() => setInfoOpen(true)}
       />
       <div className="h-14 flex-shrink-0" />
 
@@ -84,8 +86,9 @@ export default function Home() {
           onChange={handleFloorChange}
           availableCounts={{ [activeFloor]: available }}
           totalCounts={{ [activeFloor]: FLOOR_TOTALS[activeFloor] }}
+          activeTypes={activeTypes}
+          onSetTypes={setActiveTypes}
         />
-        <FilterBar activeTypes={activeTypes} onSetTypes={setActiveTypes} />
         <StatsBar spots={spots} />
       </div>
 
@@ -121,6 +124,8 @@ export default function Home() {
           onClose={() => setFindOpen(false)}
         />
       )}
+
+      {infoOpen && <InfoModal onClose={() => setInfoOpen(false)} />}
     </div>
   );
 }

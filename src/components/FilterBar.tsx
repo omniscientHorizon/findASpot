@@ -1,6 +1,7 @@
 'use client';
 
 import { SpotType } from '@/lib/types';
+import InfoTooltip from './InfoTooltip';
 
 const ALL_TYPES: SpotType[] = [
   'carrel', 'carrel_enclosed', 'computer', 'adjustable_computer',
@@ -9,8 +10,8 @@ const ALL_TYPES: SpotType[] = [
 
 const GROUPS: { label: string; types: SpotType[] }[] = [
   { label: 'All', types: ALL_TYPES },
-  { label: 'Carrels', types: ['carrel', 'carrel_enclosed'] },
-  { label: 'Tables', types: ['group_table', 'large_table', 'couch_table'] },
+  { label: 'Study Desks', types: ['carrel', 'carrel_enclosed'] },
+  { label: 'Group Study Tables', types: ['group_table', 'large_table', 'couch_table'] },
   { label: 'Computers', types: ['computer', 'adjustable_computer'] },
   { label: 'Study Rooms', types: ['study_room'] },
 ];
@@ -49,7 +50,10 @@ export default function FilterBar({ activeTypes, onSetTypes }: FilterBarProps) {
                     : 'text-gray-400 hover:text-gray-600 font-normal'
                 }`}
               >
-                {group.label}
+                <span className="flex items-center gap-0.5">
+                  {group.label}
+                  {group.label === 'Study Desks' && <InfoTooltip text="A compact private desk built for solo studying." />}
+                </span>
               </button>
               {i < GROUPS.length - 1 && (
                 <span className="text-gray-200 mx-2 select-none">·</span>

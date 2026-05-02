@@ -19,14 +19,14 @@ export const STALE_THRESHOLD_MINUTES = 60;
 export const RATE_LIMIT_SECONDS = 120;
 
 export const TYPE_LABELS: Record<SpotType, string> = {
-  carrel: 'Carrel',
+  carrel: 'Study Desk',
   computer: 'Computer',
   study_room: 'Study Room',
   group_table: 'Group Table',
   large_table: 'Large Table',
   couch_table: 'Couch Table',
   adjustable_computer: 'Adj. Computer',
-  carrel_enclosed: 'Enclosed Carrel',
+  carrel_enclosed: 'Enclosed Study Desk',
 };
 
 export const TYPE_COLORS: Record<SpotType, string> = {
