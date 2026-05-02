@@ -1,65 +1,126 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useCallback, useEffect } from 'react';
+import { Spot, SpotType } from '@/lib/types';
+import { useSpots } from '@/hooks/useSpots';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
+import { STALE_THRESHOLD_MINUTES } from '@/lib/constants';
+import Header from '@/components/Header';
+import FloorTabs from '@/components/FloorTabs';
+import FilterBar from '@/components/FilterBar';
+import FloorPlan from '@/components/FloorPlan';
+import SpotDetail from '@/components/SpotDetail';
+import StatsBar from '@/components/StatsBar';
+import FindSpot from '@/components/FindSpot';
+
+const ALL_TYPES: SpotType[] = [
+  'carrel', 'carrel_enclosed', 'computer', 'adjustable_computer',
+  'group_table', 'large_table', 'couch_table', 'study_room',
+];
+
+const FLOOR_TOTALS: Record<string, number> = {
+  basement: 64, first: 55, second: 77, third: 10,
+};
 
 export default function Home() {
+  const [activeFloor, setActiveFloor]   = useState('first');
+  const [activeTypes, setActiveTypes]   = useState<Set<SpotType>>(new Set(ALL_TYPES));
+  const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
+  const [focusSpot, setFocusSpot]       = useState<Spot | null>(null);
+  const [findOpen, setFindOpen]         = useState(false);
+
+  const { spots, loading, refetch } = useSpots(activeFloor);
+  const { userId } = useAuth();
+
+  const [libraryAvailable, setLibraryAvailable] = useState(0);
+
+  useEffect(() => {
+    const staleMs = STALE_THRESHOLD_MINUTES * 60 * 1000;
+    const fetchAll = async () => {
+      const { data } = await supabase.from('spots').select('status,updated_at');
+      if (data) {
+        const now = Date.now();
+        setLibraryAvailable(data.filter(s =>
+          s.status === 'available' && (now - new Date(s.updated_at).getTime()) <= staleMs
+        ).length);
+      }
+    };
+    fetchAll();
+    const ch = supabase.channel('library-available-count')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'spots' }, fetchAll)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const handleFloorChange = useCallback((floorId: string) => {
+    setActiveFloor(floorId);
+    setSelectedSpot(null);
+    setFocusSpot(null);
+  }, []);
+
+  const handleFindSelect = useCallback((spot: Spot) => {
+    setFindOpen(false);
+    setActiveFloor(spot.floor_id);
+    setSelectedSpot(spot);
+    setFocusSpot(spot);
+  }, []);
+
+  const available = spots.filter(s => s.status === 'available').length;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex flex-col bg-[#fafafa] overflow-hidden" style={{ height: '100dvh' }}>
+
+      <Header
+        totalAvailable={libraryAvailable}
+        totalSpots={FLOOR_TOTALS[activeFloor]}
+        onFindClick={() => setFindOpen(true)}
+      />
+      <div className="h-14 flex-shrink-0" />
+
+      <div className="flex-shrink-0">
+        <FloorTabs
+          activeFloor={activeFloor}
+          onChange={handleFloorChange}
+          availableCounts={{ [activeFloor]: available }}
+          totalCounts={{ [activeFloor]: FLOOR_TOTALS[activeFloor] }}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        <FilterBar activeTypes={activeTypes} onSetTypes={setActiveTypes} />
+        <StatsBar spots={spots} />
+      </div>
+
+      <main className="flex-1 min-h-0">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+          </div>
+        ) : (
+          <FloorPlan
+            floorId={activeFloor}
+            spots={spots}
+            activeTypes={activeTypes}
+            selectedSpot={selectedSpot}
+            onSpotClick={setSelectedSpot}
+            focusSpot={focusSpot}
+          />
+        )}
       </main>
+
+      {selectedSpot && (
+        <SpotDetail
+          spot={selectedSpot}
+          userId={userId}
+          onClose={() => setSelectedSpot(null)}
+          onUpdated={() => { refetch(); setSelectedSpot(null); }}
+        />
+      )}
+
+      {findOpen && (
+        <FindSpot
+          onSelect={handleFindSelect}
+          onClose={() => setFindOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,18 @@
+{
+  "name": "SpotFinder — Schaffer Library",
+  "short_name": "SpotFinder",
+  "description": "Real-time study spot availability at Schaffer Library",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
